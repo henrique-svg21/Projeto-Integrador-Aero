@@ -1,10 +1,12 @@
 """
 Microsserviço RESTful de Inferência Preditiva em Tempo Real - AeroMotion Dynamics.
-Compatível com FastAPI moderno (Lifespan) e Pydantic V2.
+Compatível com FastAPI moderno (Lifespan), Pydantic V2 e execução em Windows (Python 3.12).
 """
 from contextlib import asynccontextmanager
 from enum import Enum
 import os
+from pathlib import Path
+import sys
 from typing import Any, Dict, List
 import joblib
 import pandas as pd
@@ -13,12 +15,16 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import RedirectResponse
 
-# Caminhos dos modelos
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_DIR = os.path.join(BASE_DIR, "models")
-MODEL_PATH = os.path.join(MODEL_DIR, "best_model.joblib")
-PREPROCESSOR_PATH = os.path.join(MODEL_DIR, "preprocessor.joblib")
-ISO_PATH = os.path.join(MODEL_DIR, "isolation_forest.joblib")
+# Garante que a raiz do projeto esteja no sys.path em qualquer ambiente
+BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+# Caminhos absolutos e robustos para os modelos
+MODEL_DIR = BASE_DIR / "models"
+MODEL_PATH = MODEL_DIR / "best_model.joblib"
+PREPROCESSOR_PATH = MODEL_DIR / "preprocessor.joblib"
+ISO_PATH = MODEL_DIR / "isolation_forest.joblib"
 
 FALLA_MAP = {
     0: "Normal",
@@ -33,14 +39,14 @@ artifacts: Dict[str, Any] = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Gerenciador moderno de ciclo de vida (Lifespan) do FastAPI."""
-    if os.path.exists(MODEL_PATH) and os.path.exists(PREPROCESSOR_PATH):
+    if MODEL_PATH.exists() and PREPROCESSOR_PATH.exists():
         artifacts["preprocessor"] = joblib.load(PREPROCESSOR_PATH)
         artifacts["classifier"] = joblib.load(MODEL_PATH)
-        if os.path.exists(ISO_PATH):
+        if ISO_PATH.exists():
             artifacts["anomaly_detector"] = joblib.load(ISO_PATH)
-        print("-> Artefatos preditivos carregados com sucesso em memória.")
+        print("-> Artefatos preditivos carregados com sucesso em memoria.")
     else:
-        print("-> AVISO: Modelos não encontrados em models/. Execute src/train_model.py.")
+        print("-> AVISO: Modelos nao encontrados em models/. Execute src/train_model.py.")
     yield
     artifacts.clear()
 
@@ -48,7 +54,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AeroMotion Dynamics - Telemetry Predictive API",
     version="1.0.0",
-    description="Microserviço industrial para diagnóstico precoce de falhas em turbinas.",
+    description="Microservico industrial para diagnostico precoce de falhas em turbinas.",
     lifespan=lifespan
 )
 
@@ -99,7 +105,6 @@ def preparar_features(leituras: List[TelemetriaLeitura]) -> pd.DataFrame:
 
 @app.get("/", include_in_schema=False)
 def root():
-    """Redireciona a raiz diretamente para a documentação interativa."""
     return RedirectResponse(url="/docs")
 
 
@@ -117,7 +122,7 @@ def health_check():
 @app.post("/predict", response_model=PredicaoResposta)
 def predict_single(telemetria: TelemetriaLeitura):
     if "classifier" not in artifacts or "preprocessor" not in artifacts:
-        raise HTTPException(status_code=503, detail="Modelos não carregados no servidor.")
+        raise HTTPException(status_code=503, detail="Modelos nao carregados no servidor.")
 
     df_in = preparar_features([telemetria])
     feature_cols = [
@@ -151,7 +156,7 @@ def predict_single(telemetria: TelemetriaLeitura):
 @app.post("/predict-batch", response_model=List[PredicaoResposta])
 def predict_batch(telemetrias: List[TelemetriaLeitura]):
     if "classifier" not in artifacts or "preprocessor" not in artifacts:
-        raise HTTPException(status_code=503, detail="Modelos não carregados no servidor.")
+        raise HTTPException(status_code=503, detail="Modelos nao carregados no servidor.")
 
     df_in = preparar_features(telemetrias)
     feature_cols = [
@@ -188,4 +193,4 @@ def predict_batch(telemetrias: List[TelemetriaLeitura]):
 
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True, app_dir=str(BASE_DIR))
