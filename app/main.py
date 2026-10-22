@@ -1,27 +1,25 @@
 """
 Microsserviço RESTful de Inferência Preditiva em Tempo Real - AeroMotion Dynamics.
+Compatível com FastAPI moderno (Lifespan) e Pydantic V2.
 """
+from contextlib import asynccontextmanager
 from enum import Enum
 import os
 from typing import Any, Dict, List
 import joblib
 import pandas as pd
 from pydantic import BaseModel, Field
+import uvicorn
 from fastapi import FastAPI, HTTPException, status
+from fastapi.responses import RedirectResponse
 
-app = FastAPI(
-    title="AeroMotion Dynamics - Telemetry Predictive API",
-    version="1.0.0",
-    description="Microserviço de diagnóstico precoce de falhas em turbinas industriais."
-)
-
-# Caminho dos modelos
-MODEL_DIR = os.path.join(os.path.dirname(__file__), "..", "models")
+# Caminhos dos modelos
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MODEL_DIR = os.path.join(BASE_DIR, "models")
 MODEL_PATH = os.path.join(MODEL_DIR, "best_model.joblib")
 PREPROCESSOR_PATH = os.path.join(MODEL_DIR, "preprocessor.joblib")
 ISO_PATH = os.path.join(MODEL_DIR, "isolation_forest.joblib")
 
-# Dicionário de falhas
 FALLA_MAP = {
     0: "Normal",
     1: "Desgaste_Rolamento",
@@ -29,20 +27,30 @@ FALLA_MAP = {
     3: "Cavitacao_Superaquecimento"
 }
 
-# Cache de modelos em memória
 artifacts: Dict[str, Any] = {}
 
 
-@app.on_event("startup")
-def load_artifacts():
-    """Carrega os artefatos de inferência na inicialização do serviço."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Gerenciador moderno de ciclo de vida (Lifespan) do FastAPI."""
     if os.path.exists(MODEL_PATH) and os.path.exists(PREPROCESSOR_PATH):
         artifacts["preprocessor"] = joblib.load(PREPROCESSOR_PATH)
         artifacts["classifier"] = joblib.load(MODEL_PATH)
         if os.path.exists(ISO_PATH):
             artifacts["anomaly_detector"] = joblib.load(ISO_PATH)
+        print("-> Artefatos preditivos carregados com sucesso em memória.")
     else:
-        print("AVISO: Artefatos de modelo não encontrados em models/. Execute src/train_model.py.")
+        print("-> AVISO: Modelos não encontrados em models/. Execute src/train_model.py.")
+    yield
+    artifacts.clear()
+
+
+app = FastAPI(
+    title="AeroMotion Dynamics - Telemetry Predictive API",
+    version="1.0.0",
+    description="Microserviço industrial para diagnóstico precoce de falhas em turbinas.",
+    lifespan=lifespan
+)
 
 
 class ModoOperacaoEnum(str, Enum):
@@ -52,15 +60,15 @@ class ModoOperacaoEnum(str, Enum):
 
 
 class TelemetriaLeitura(BaseModel):
-    id_equipamento: str = Field(..., example="TURB-101")
-    modo_operacao: ModoOperacaoEnum = Field(..., example="Carga_Alta")
-    horas_operacao_acumuladas: float = Field(..., ge=0.0, example=1250.5)
-    temperatura_mancal_c: float = Field(..., ge=-20.0, le=250.0, example=78.4)
-    vibracao_rms_mms: float = Field(..., ge=0.0, le=50.0, example=3.2)
-    pressao_oleo_bar: float = Field(..., ge=0.0, le=15.0, example=4.3)
-    rotacao_rpm: float = Field(..., ge=500.0, le=6000.0, example=3450.0)
-    emissao_acustica_db: float = Field(..., ge=10.0, le=150.0, example=58.2)
-    corrente_eletrica_amp: float = Field(..., ge=0.0, le=100.0, example=38.1)
+    id_equipamento: str = Field(..., examples=["TURB-101"])
+    modo_operacao: ModoOperacaoEnum = Field(..., examples=["Carga_Alta"])
+    horas_operacao_acumuladas: float = Field(..., ge=0.0, examples=[1250.5])
+    temperatura_mancal_c: float = Field(..., ge=-20.0, le=250.0, examples=[78.4])
+    vibracao_rms_mms: float = Field(..., ge=0.0, le=50.0, examples=[3.2])
+    pressao_oleo_bar: float = Field(..., ge=0.0, le=15.0, examples=[4.3])
+    rotacao_rpm: float = Field(..., ge=500.0, le=6000.0, examples=[3450.0])
+    emissao_acustica_db: float = Field(..., ge=10.0, le=150.0, examples=[58.2])
+    corrente_eletrica_amp: float = Field(..., ge=0.0, le=100.0, examples=[38.1])
 
 
 class PredicaoResposta(BaseModel):
@@ -72,12 +80,10 @@ class PredicaoResposta(BaseModel):
 
 
 def preparar_features(leituras: List[TelemetriaLeitura]) -> pd.DataFrame:
-    """Prepara os dados de entrada calculando as features derivadas exigidas."""
     registros = []
     for l in leituras:
-        reg = l.dict()
+        reg = l.model_dump()
         reg['modo_operacao'] = l.modo_operacao.value
-        # Features sintéticas de janela para requisição em tempo real pontual
         reg['vibracao_mean_1h'] = reg['vibracao_rms_mms']
         reg['vibracao_std_1h'] = 0.0
         reg['temp_mean_1h'] = reg['temperatura_mancal_c']
@@ -88,13 +94,17 @@ def preparar_features(leituras: List[TelemetriaLeitura]) -> pd.DataFrame:
         reg['temp_std_6h'] = 0.0
         reg['severidade_dinamica'] = reg['vibracao_rms_mms'] / reg['rotacao_rpm']
         registros.append(reg)
-
     return pd.DataFrame(registros)
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    """Redireciona a raiz diretamente para a documentação interativa."""
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health", status_code=status.HTTP_200_OK)
 def health_check():
-    """Verifica o status operacional e a versão do modelo."""
     model_loaded = "classifier" in artifacts
     return {
         "status": "online" if model_loaded else "degraded",
@@ -106,7 +116,6 @@ def health_check():
 
 @app.post("/predict", response_model=PredicaoResposta)
 def predict_single(telemetria: TelemetriaLeitura):
-    """Executa o diagnóstico preditivo em tempo real para uma única leitura de telemetria."""
     if "classifier" not in artifacts or "preprocessor" not in artifacts:
         raise HTTPException(status_code=503, detail="Modelos não carregados no servidor.")
 
@@ -121,17 +130,14 @@ def predict_single(telemetria: TelemetriaLeitura):
     ]
     X_trans = artifacts["preprocessor"].transform(df_in[feature_cols])
 
-    # Predição Multiclasse
     pred_class = int(artifacts["classifier"].predict(X_trans)[0])
     probs = artifacts["classifier"].predict_proba(X_trans)[0]
-
     prob_dict = {FALLA_MAP[i]: float(round(p, 4)) for i, p in enumerate(probs)}
 
-    # Verificação de anomalia não documentada (Isolation Forest)
     is_anomaly = False
     if "anomaly_detector" in artifacts:
         iso_pred = artifacts["anomaly_detector"].predict(X_trans)[0]
-        is_anomaly = (iso_pred == -1)
+        is_anomaly = bool(iso_pred == -1)
 
     return PredicaoResposta(
         id_equipamento=telemetria.id_equipamento,
@@ -144,7 +150,6 @@ def predict_single(telemetria: TelemetriaLeitura):
 
 @app.post("/predict-batch", response_model=List[PredicaoResposta])
 def predict_batch(telemetrias: List[TelemetriaLeitura]):
-    """Processa inferência preditiva em lote."""
     if "classifier" not in artifacts or "preprocessor" not in artifacts:
         raise HTTPException(status_code=503, detail="Modelos não carregados no servidor.")
 
@@ -176,7 +181,11 @@ def predict_batch(telemetrias: List[TelemetriaLeitura]):
                 diagnostico_codigo=c,
                 diagnostico_descricao=FALLA_MAP[c],
                 probabilidades=p_dict,
-                alerta_anomalia_desconhecida=(iso_preds[idx] == -1)
+                alerta_anomalia_desconhecida=bool(iso_preds[idx] == -1)
             )
         )
     return respostas
+
+
+if __name__ == "__main__":
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
