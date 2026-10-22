@@ -1,2 +1,16 @@
+# Created by venv; see https://docs.python.org/3/library/venv.html
 .venv/
 __pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+.env
+data/dados_sensores_tratados.csv
+models/*.joblib
+models/*.pkl

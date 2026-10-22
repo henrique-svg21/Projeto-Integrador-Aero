@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  aeromotion-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aeromotion_inference_service
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=production
+    volumes:
+      - ./models:/app/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s

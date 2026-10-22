@@ -18,9 +18,9 @@ def main():
     # 1. Carregamento dos dados
     data_path = os.path.join("data", "processed", "dados_sensores_tratados.csv")
     if not os.path.exists(data_path):
-        raw_path = os.path.join("data", "raw", r"C:\Users\henrique_schorck\Documents\GitHub\Projeto-Integrador-Aero\Machine-Learning\data\processed\dados_sensores_tratados.csv")
+        raw_path = os.path.join("data", "raw", "dados_sensores_aeromotion.csv")
         if not os.path.exists(raw_path):
-            raw_path = r"C:\Users\henrique_schorck\Documents\GitHub\Projeto-Integrador-Aero\Machine-Learning\data\processed\dados_sensores_tratados.csv"
+            raw_path = "dados_sensores_aeromotion.csv"
         df = pd.read_csv(raw_path)
         df = saneamento_outliers_e_ausentes(df)
         df = engenharia_features_stream(df)
