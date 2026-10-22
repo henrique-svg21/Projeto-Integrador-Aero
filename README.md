@@ -1,6 +1,20 @@
-# AeroMotion Dynamics S.A. — Plataforma Integrada de IA & Visão Computacional
+<div align="center">
+
+# AeroMotion Dynamics S.A.
+### Plataforma Integrada de Inteligência Artificial & Visão Computacional
 
 Sistema industrial *End-to-End* para diagnóstico preditivo de modos de falha em turbinas e garantia multimodal de qualidade em montagem mecânica por Visão Computacional e telemetria IoT em nós de Edge Computing.
+
+<br>
+
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
+![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Status](https://img.shields.io/badge/STATUS-CONCLU%C3%8DDO-2ea44f?style=for-the-badge)
+![License](https://img.shields.io/badge/LICENSE-MIT-yellow?style=for-the-badge)
+
+</div>
 
 ---
 
@@ -213,7 +227,7 @@ Resultados obtidos no conjunto de teste independente (Split Temporal de 30% mais
 |  | 2 (Desbalanceamento Rotor) | 98,68% | 99,34% | 99,01% |  |
 |  | 3 (Cavitação/Superaquec.) | 99,07% | 100,00% | 99,53% |  |
 
-* **Destaque:** Ambas as abordagens superaram com folga a meta de projeto de **Recall > 90%** em todas as categorias de falha. O **XGBoost Classifier** foi implementado como modelo produtivo final por atingir **100% de Recall na classe de Cavitação/Superaquecimento**.
+* **Destaque:** Ambas as abordagens superaram a meta de projeto de **Recall > 90%** em todas as categorias de falha. O **XGBoost Classifier** foi implementado como modelo produtivo final por atingir **100% de Recall na classe de Cavitação/Superaquecimento**.
 
 ---
 
