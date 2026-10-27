@@ -1,5 +1,5 @@
 """
-Microsserviço RESTful e Dashboard Web Industrial com Sliders de Tolerância.
+Microsserviço RESTful e Dashboard Web Industrial com Sliders de Tolerância e Heartbeat.
 AeroMotion Dynamics S.A.
 """
 from contextlib import asynccontextmanager
@@ -54,7 +54,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="AeroMotion Dynamics - Industrial Control",
-    version="1.3.0",
+    version="1.3.1",
     lifespan=lifespan
 )
 
@@ -109,7 +109,7 @@ def health_check():
     return {
         "status": "online" if model_loaded else "degraded",
         "service": "AeroMotion Predictive Inference API",
-        "model_version": "1.3.0-tunable-vision",
+        "model_version": "1.3.1-heartbeat",
         "model_loaded": model_loaded
     }
 
@@ -156,7 +156,6 @@ async def inspect_compare_endpoint(
     diff_threshold: int = Form(35),
     canny_high: int = Form(150)
 ):
-    """Compara componentes aplicando parâmetros de tolerância dinâmicos."""
     b_ref = await file_ref.read()
     b_test = await file_test.read()
 
@@ -212,7 +211,7 @@ DASHBOARD_HTML = """
         .nav-tabs .nav-link.active { color: #38bdf8; background-color: #16203a; border-bottom: 3px solid #38bdf8; }
         .preview-box { height: 210px; border: 2px dashed #334155; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #080d1a; }
         .preview-box img { max-height: 100%; max-width: 100%; object-fit: contain; }
-        .badge-status { font-size: 1.05rem; padding: 8px 16px; border-radius: 8px; }
+        .badge-status { font-size: 1.05rem; padding: 8px 16px; border-radius: 8px; transition: all 0.3s ease; }
         .metric-card { background: #0c1527; border-radius: 8px; padding: 12px; border-left: 4px solid #38bdf8; }
         .slider-label { font-size: 0.88rem; font-weight: 600; color: #cbd5e1; display: flex; justify-content: space-between; margin-bottom: 4px; }
         .form-range::-webkit-slider-thumb { background: #38bdf8; }
@@ -226,8 +225,9 @@ DASHBOARD_HTML = """
                 <h3 class="fw-bold text-sky-400 mb-0">✈️ AeroMotion Dynamics S.A.</h3>
                 <small class="text-secondary">Controle de Qualidade Óptica & Metrologia Parametrizável de Componentes</small>
             </div>
-            <div>
-                <span class="badge bg-success badge-status me-2">● Edge Node Ativo</span>
+            <div class="d-flex align-items-center">
+                <!-- Badge Dinâmico com Monitoramento de Conexão -->
+                <span id="badgeEdgeStatus" class="badge bg-secondary badge-status me-2">⌛ Verificando nó...</span>
                 <a href="/docs" target="_blank" class="btn btn-outline-info btn-sm">Documentação Swagger API</a>
             </div>
         </div>
@@ -249,7 +249,6 @@ DASHBOARD_HTML = """
             <!-- ABA 1: VISÃO COM SLIDERS -->
             <div class="tab-pane fade show active" id="vision-pane">
                 <div class="row g-4">
-                    <!-- Coluna Esquerda: Imagens + Sliders -->
                     <div class="col-lg-5">
                         <div class="card p-3 shadow mb-3">
                             <h5 class="card-title text-info mb-3">1. Imagens para Comparação</h5>
@@ -263,11 +262,9 @@ DASHBOARD_HTML = """
                             <div class="preview-box" id="boxTest"><span class="text-muted small">Aguardando peça sob teste...</span></div>
                         </div>
 
-                        <!-- Painel de Sliders de Tolerância -->
                         <div class="card p-3 shadow">
                             <h5 class="card-title text-warning mb-3">⚙️ Tolerâncias Industriais & Filtros</h5>
 
-                            <!-- Slider 1 -->
                             <div class="mb-3">
                                 <div class="slider-label">
                                     <span>Tolerância Máx. Desgaste Superficial:</span>
@@ -277,7 +274,6 @@ DASHBOARD_HTML = """
                                 <small class="text-secondary d-block" style="font-size: 0.75rem;">Peças críticas: 2-5% | Peças de carcaça: 15-40%</small>
                             </div>
 
-                            <!-- Slider 2 -->
                             <div class="mb-3">
                                 <div class="slider-label">
                                     <span>Circularidade Mínima de Aceitação:</span>
@@ -287,7 +283,6 @@ DASHBOARD_HTML = """
                                 <small class="text-secondary d-block" style="font-size: 0.75rem;">1.0 = Círculo Perfeito. Reprova peças ovalizadas ou entalhadas.</small>
                             </div>
 
-                            <!-- Slider 3 -->
                             <div class="mb-3">
                                 <div class="slider-label">
                                     <span>Sensibilidade de Diferença (Filtro de Luz):</span>
@@ -297,7 +292,6 @@ DASHBOARD_HTML = """
                                 <small class="text-secondary d-block" style="font-size: 0.75rem;">Aumente para ignorar sombras e diferenças leves de tom de pintura.</small>
                             </div>
 
-                            <!-- Slider 4 -->
                             <div class="mb-3">
                                 <div class="slider-label">
                                     <span>Limiar Superior de Borda (Canny High):</span>
@@ -311,7 +305,6 @@ DASHBOARD_HTML = """
                         </div>
                     </div>
 
-                    <!-- Coluna Direita: Resultados -->
                     <div class="col-lg-7">
                         <div class="card p-4 shadow h-100">
                             <h5 class="card-title text-info mb-3">2. Diagnóstico Metrológico em Tempo Real</h5>
@@ -491,6 +484,35 @@ DASHBOARD_HTML = """
         }
         bindPreview('fileRef', 'boxRef');
         bindPreview('fileTest', 'boxTest');
+
+        // Monitoramento Ativo do Edge Node (Heartbeat contínuo)
+        async function monitorarEdgeNode() {
+            const badge = document.getElementById('badgeEdgeStatus');
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 2000); // Timeout de 2s
+                const res = await fetch('/health', { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (!res.ok) throw new Error('Status inesperado');
+                const data = await res.json();
+
+                if (data.status === 'online') {
+                    badge.className = 'badge bg-success badge-status me-2';
+                    badge.innerHTML = '● Edge Node Ativo';
+                } else {
+                    badge.className = 'badge bg-warning text-dark badge-status me-2';
+                    badge.innerHTML = '▲ Edge Node Degradado (Sem Modelos)';
+                }
+            } catch (err) {
+                badge.className = 'badge bg-danger badge-status me-2';
+                badge.innerHTML = '✖ Edge Node Desconectado';
+            }
+        }
+
+        // Executa imediatamente e checa a cada 3 segundos
+        monitorarEdgeNode();
+        setInterval(monitorarEdgeNode, 3000);
 
         // Comparação com envio de tolerâncias
         document.getElementById('btnCompare').addEventListener('click', async () => {
