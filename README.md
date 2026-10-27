@@ -35,36 +35,39 @@ A **AeroMotion Dynamics S.A.** instrumentou quatro bancadas de testes (equipamen
 Projeto-Integrador-Aero/
 ├── app/
 │   ├── __init__.py
-│   └── main.py                     # API RESTful FastAPI e Dashboard Industrial
+│   └── main.py                         # API RESTful FastAPI e Dashboard Industrial
 ├── data/
-│   ├── dados_sensores_tratados.csv # Dataset pós-saneamento e feature engineering
-│   └── raw/                        # Diretório para dados brutos (telemetria IoT)
+│   └── dados_sensores_tratados.csv     # Dataset pós-saneamento e feature engineering
 ├── docs/
-│   ├── images/                     # Evidências geradas pelo pipeline de visão
-│   ├── Parecer_tecnico.md          # Parecer regulatório (LGPD, EU AI Act, Cibersegurança)
-│   └── relatorio_tecnico_mlops.md  # Relatório analítico, EDA e plano de MLOps
-├── models/
-│   ├── best_model.joblib           # Classificador multiclasse treinado (XGBoost/RF)
-│   ├── isolation_forest.joblib     # Detector não supervisionado de anomalias
-│   └── preprocessor.joblib         # Pipeline de pré-processamento (RobustScaler + OneHot)
+│   ├── Parecer_Tecnico.md              # Parecer regulatório (LGPD, EU AI Act, Cibersegurança)
+│   ├── Relatorio_MLOps.md              # Relatório analítico, EDA e plano de MLOps
+│   └── Relatorio_Projeto_Integrador... # Relatório técnico completo formatado ABNT (.docx)
+├── models/                             # Modelos binários (gerados via train_model.py)
+│   ├── best_model.joblib
+│   ├── isolation_forest.joblib
+│   └── preprocessor.joblib
+├── samples/                            # Amostras para teste prático na interface
+│   ├── geometry/                       # Imagens de teste (motor_reference, motor_bad, etc.)
+│   └── thermal/                        # Frames de termografia infravermelha
 ├── src/
 │   ├── __init__.py
-│   ├── preprocessing.py            # Rotinas de saneamento e rolling features
-│   ├── train_model.py              # Pipeline de treino, validação e split temporal
-│   └── vision_inspection.py        # Algoritmos de Canny, circularidade e HSV
-├── Tratamento.ipynb                # Notebook de exploração estrutural e EDA
-├── Dockerfile                      # Build enxuto da imagem para Edge Computing
-├── docker-compose.yml              # Orquestração do serviço de inferência
-├── requirements.txt                # Dependências versionadas do projeto
+│   ├── generate_visions_reports.py     # Script utilitário para geração de figuras
+│   ├── preprocessing.py                # Rotinas de saneamento e rolling features
+│   ├── train_model.py                  # Pipeline de treino, validação e split temporal
+│   └── vision_inspection.py            # Algoritmos de Canny, circularidade e HSV
+├── Tratamento.ipynb                    # Notebook de exploração estrutural e EDA
+├── dados_sensores_aeromotion.csv       # Base bruta de telemetria IoT (12.000 amostras)
+├── Dockerfile                          # Build enxuto da imagem para Edge Computing
+├── docker-compose.yml                  # Orquestração do serviço de inferência
+├── requirements.txt                    # Dependências versionadas do projeto
 └── README.md
-
 ```
 
 ---
 
 ## 3. Tecnologias e Bibliotecas
 
-* **Linguagem & Ambiente:** Python 3.10+, Visual Studio Code
+* **Linguagem & Ambiente:** Python 3.10+ / 3.12, Visual Studio Code
 * **Engenharia e Análise de Dados:** Pandas, NumPy, SciPy
 * **Machine Learning & MLOps:** Scikit-Learn, XGBoost, Imbalanced-Learn, Joblib
 * **Visão Computacional:** OpenCV (`opencv-python-headless`)
@@ -75,43 +78,31 @@ Projeto-Integrador-Aero/
 ## 4. Guia de Instalação e Execução
 
 ### Pré-requisitos
-
 * Python 3.10 ou superior instalado
 * Git instalado
 
 ### Passo 1: Clonar o Repositório
-
 ```bash
-git clone [https://github.com/henrique-svg21/Projeto-Integrador-Aero.git](https://github.com/henrique-svg21/Projeto-Integrador-Aero.git)
+git clone https://github.com/henrique-svg21/Projeto-Integrador-Aero.git
 cd Projeto-Integrador-Aero
-
 ```
 
 ### Passo 2: Configurar o Ambiente Virtual (`venv`)
-
 * No Windows (PowerShell):
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-
-```
-
-
+  ```powershell
+  python -m venv .venv
+  .\.venv\Scripts\Activate.ps1
+  ```
 * No Linux/macOS:
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-
-```
-
-
+  ```bash
+  python3 -m venv .venv
+  source .venv/bin/activate
+  ```
 
 ### Passo 3: Instalar as Dependências
-
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
-
 ```
 
 ---
@@ -119,45 +110,42 @@ pip install -r requirements.txt
 ## 5. Pipeline de Execução dos Módulos
 
 ### 1. Saneamento e Engenharia de Features
-
-Abra e execute sequencialmente as células do arquivo `Tratamento.ipynb` no VS Code ou processe via script para gerar `data/dados_sensores_tratados.csv`.
+Abra e execute as células do arquivo `Tratamento.ipynb` no VS Code para inspecionar os dados brutos e gerar a base tratada em `data/dados_sensores_tratados.csv`.
 
 ### 2. Treinamento dos Modelos de Machine Learning
-
-Execute o script de treinamento para calibrar os modelos supervisionados e não supervisionados e exportar os pesos para a pasta `models/`:
-
+Execute o script de treinamento para calibrar os modelos supervisionados e não supervisionados e gerar os pesos na pasta `models/`:
 ```bash
 python src/train_model.py
-
 ```
 
 ### 3. Validação dos Algoritmos de Visão Computacional
-
-Para testar os limites do Canny Edge Detection, circularidade e segmentação térmica em terminal:
-
+Para testar os limites do Canny Edge Detection, circularidade e segmentação térmica diretamente via terminal:
 ```bash
 python src/vision_inspection.py
-
 ```
 
 ---
 
 ## 6. Inicialização do Microsserviço & Dashboard
 
-Inicie a aplicação com o servidor Uvicorn a partir da raiz do projeto:
+Inicie a aplicação a partir da raiz do projeto:
 
 ```bash
 uvicorn app.main:app --reload --port 8000
-
 ```
 
 ### Interfaces Disponíveis:
 
-* **Central de Controle & Metrologia (Dashboard Web):**
-Acesse `http://127.0.0.1:8000` no seu navegador.
-Permite carregar imagens de referência e teste, ajustar sliders de tolerância industrial (desgaste aceitável, circularidade mínima, filtros de luz) e testar leituras dos sensores em tempo real.
-* **Documentação Interativa da API (Swagger UI):**
-Acesse `http://127.0.0.1:8000/docs` para inspecionar schemas e realizar requisições REST diretamente.
+* **Central de Controle & Metrologia (Dashboard Web):**  
+  Acesse `http://127.0.0.1:8000` no seu navegador.  
+  Permite carregar imagens de referência e teste, ajustar sliders de tolerância industrial (desgaste aceitável, circularidade mínima, filtros de luz) e testar leituras dos sensores em tempo real.
+* **Documentação Interativa da API (Swagger UI):**  
+  Acesse `http://127.0.0.1:8000/docs` para inspecionar schemas e realizar requisições REST diretamente.
+
+> **Amostras Prontas para Teste:**  
+> O diretório [`samples/`](samples/) contém arquivos prontos para experimentação imediata no Dashboard:
+> * **`samples/geometry/`**: Imagem nominal de referência (`motor_reference.png`), peça com avaria estrutural (`motor_bad.png`) e com desgaste superficial (`motor_rust.png`).
+> * **`samples/thermal/`**: Frames infravermelhos em regime normal (`termografia_normal.png`) e com hotspot crítico no mancal (`termografia_hotspot_critico.png`).
 
 ---
 
@@ -165,15 +153,12 @@ Acesse `http://127.0.0.1:8000/docs` para inspecionar schemas e realizar requisi�
 
 Abra uma segunda aba de terminal (com o servidor ativo) e teste as rotas principais:
 
-### 1. Verificação de Saúde (`GET /health`)
-
+### 1. Verificação de Saúde e Heartbeat (`GET /health`)
 ```powershell
-Invoke-RestMethod -Uri "[http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)" -Method GET
-
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/health" -Method GET
 ```
 
 ### 2. Diagnóstico Preditivo de Operação Nominal (`POST /predict`)
-
 ```powershell
 $body = @{
     id_equipamento = "TURB-101"
@@ -187,12 +172,10 @@ $body = @{
     corrente_eletrica_amp = 26.5
 } | ConvertTo-Json
 
-Invoke-RestMethod -Uri "[http://127.0.0.1:8000/predict](http://127.0.0.1:8000/predict)" -Method POST -Body $body -ContentType "application/json"
-
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/predict" -Method POST -Body $body -ContentType "application/json"
 ```
 
-### 3. Diagnóstico de Falha Crítica (`POST /predict`)
-
+### 3. Diagnóstico de Falha Crítica por Desbalanceamento (`POST /predict`)
 ```powershell
 $bodyFalha = @{
     id_equipamento = "TURB-103"
@@ -206,8 +189,7 @@ $bodyFalha = @{
     corrente_eletrica_amp = 38.0
 } | ConvertTo-Json
 
-Invoke-RestMethod -Uri "[http://127.0.0.1:8000/predict](http://127.0.0.1:8000/predict)" -Method POST -Body $bodyFalha -ContentType "application/json"
-
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/predict" -Method POST -Body $bodyFalha -ContentType "application/json"
 ```
 
 ---
@@ -217,15 +199,15 @@ Invoke-RestMethod -Uri "[http://127.0.0.1:8000/predict](http://127.0.0.1:8000/pr
 Resultados obtidos no conjunto de teste independente (Split Temporal de 30% mais recente):
 
 | Modelo | Classe de Falha | Precisão | Recall | F1-Score | Acurácia Global |
-| --- | --- | --- | --- | --- | --- |
+| :--- | :--- | :---: | :---: | :---: | :---: |
 | **Random Forest** | 0 (Normal) | 99,62% | 99,91% | 99,76% | **99,47%** |
-|  | 1 (Desgaste Rolamento) | 97,73% | 93,99% | 95,82% |  |
-|  | 2 (Desbalanceamento Rotor) | 98,01% | 98,01% | 98,01% |  |
-|  | 3 (Cavitação/Superaquec.) | 100,00% | 98,13% | 99,06% |  |
+| | 1 (Desgaste Rolamento) | 97,73% | 93,99% | 95,82% | |
+| | 2 (Desbalanceamento Rotor) | 98,01% | 98,01% | 98,01% | |
+| | 3 (Cavitação/Superaquec.) | 100,00% | 98,13% | 99,06% | |
 | **XGBoost Classifier** | 0 (Normal) | 99,72% | 99,97% | 99,84% | **99,67%** |
-|  | 1 (Desgaste Rolamento) | 100,00% | 94,54% | 97,19% |  |
-|  | 2 (Desbalanceamento Rotor) | 98,68% | 99,34% | 99,01% |  |
-|  | 3 (Cavitação/Superaquec.) | 99,07% | 100,00% | 99,53% |  |
+| | 1 (Desgaste Rolamento) | 100,00% | 94,54% | 97,19% | |
+| | 2 (Desbalanceamento Rotor) | 98,68% | 99,34% | 99,01% | |
+| | 3 (Cavitação/Superaquec.) | 99,07% | 100,00% | 99,53% | |
 
 * **Destaque:** Ambas as abordagens superaram a meta de projeto de **Recall > 90%** em todas as categorias de falha. O **XGBoost Classifier** foi implementado como modelo produtivo final por atingir **100% de Recall na classe de Cavitação/Superaquecimento**.
 
@@ -233,7 +215,7 @@ Resultados obtidos no conjunto de teste independente (Split Temporal de 30% mais
 
 ## 9. Governança, Regulamentação & MLOps
 
-* **LGPD (Lei 13.709/2018):** As câmeras de chão de fábrica operam com protocolo de *Privacy by Design* e rotinas de anonimização (Face Blurring) processadas localmente antes do envio de métricas.
+* **LGPD (Lei 13.709/2018):** As câmeras de chão de fábrica operam com protocolo de *Privacy by Design* e rotinas de anonimização facial (Face Blurring) processadas localmente antes do envio de métricas.
 * **EU AI Act:** O sistema foi categorizado como **IA de Alto Risco (High-Risk)**, incorporando registro contínuo de logs auditáveis e supervisão humana mandatória (*Human-in-the-Loop*) para bloqueios de máquinas.
 * **Cibersegurança OT/IT (ISA/IEC 62443):** O nó de inferência opera em DMZ Industrial com autenticação por mTLS e proteção estrita contra envenenamento de dados (*Data Poisoning*).
 * **Plano de MLOps:** Monitoramento de *Data Drift* baseado em testes Kolmogorov-Smirnov e rotina de retreinamento trimestral integrada ao detector de anomalias não supervisionado Isolation Forest.
@@ -246,9 +228,7 @@ Caso o nó fabril possua suporte a contêineres:
 
 ```bash
 docker-compose up --build -d
-
 ```
-
 O serviço será exposto na porta `8000` com reinicialização automática e verificação contínua de integridade via `/health`.
 
 ---
@@ -279,4 +259,4 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
+```
