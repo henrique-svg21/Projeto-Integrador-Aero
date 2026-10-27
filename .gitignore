@@ -14,4 +14,3 @@ Thumbs.db
 data/dados_sensores_tratados.csv
 models/*.joblib
 models/*.pkl
-docs/images/
