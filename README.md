@@ -51,7 +51,6 @@ Projeto-Integrador-Aero/
 │   └── thermal/                        # Frames de termografia infravermelha
 ├── src/
 │   ├── __init__.py
-│   ├── generate_visions_reports.py     # Script utilitário para geração de figuras
 │   ├── preprocessing.py                # Rotinas de saneamento e rolling features
 │   ├── train_model.py                  # Pipeline de treino, validação e split temporal
 │   └── vision_inspection.py            # Algoritmos de Canny, circularidade e HSV
